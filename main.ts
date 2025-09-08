@@ -17,13 +17,49 @@ server.tool(
 	},
 	// Code that runs when the tool is called
 	async ({ city }) => {
-		return {
-			content: [
-				{
-					type: 'text',
-					text: `The weather in ${city} is sunny!`,
-				},
-			],
+		try {
+			// Get coordinates for the city using a geocoding API
+			const geoResponse = await fetch(
+        `https://geocoding-api.open-meteo.com/v1/search?name=${city}&count=1&language=en&format=json`
+      );
+			const geoData = await geoResponse.json();
+
+			// Handle case where city is not found
+			if (!geoData.results || geoData.results.length === 0) {
+				return {
+					content: [
+						{
+							type: 'text',
+							text: `Sorry, I couldn't find a city named "${city}". Please check the spelling and try again.`
+						},
+					],
+				}
+			}
+
+			// Get weather data using coordinates
+			const { latitude, longitude } = geoData.results[0];
+			const weatherResponse = await fetch(
+        `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,weather_code&hourly=temperature_2m,precipitation&forecast_days=1`
+      );
+			const weatherData = await weatherResponse.json();
+
+			return {
+				content: [
+					{
+						type: 'text',
+						text: JSON.stringify(weatherData, null, 2)
+					},
+				],
+			}
+		} catch (error) {
+			return {
+				content: [
+					{
+						type: 'text',
+						text: `Error fetching weather data: ${error.message}`
+					},
+				],
+			}
 		}
 	},
 );
